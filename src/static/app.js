@@ -472,6 +472,30 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Fallback copy-to-clipboard using deprecated execCommand
+  function copyLegacy(text, btn, originalText) {
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const success = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      if (success) {
+        btn.textContent = "✔ Copied!";
+        btn.classList.add("copied");
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.classList.remove("copied");
+        }, 2000);
+      }
+    } catch (err) {
+      console.error("Failed to copy text:", err);
+    }
+  }
+
   // Function to render a single activity card
   function renderActivityCard(name, details) {
     const activityCard = document.createElement("div");
@@ -569,6 +593,12 @@ document.addEventListener("DOMContentLoaded", () => {
         `
         }
       </div>
+      <div class="share-buttons">
+        <span class="share-label">Share this activity:</span>
+        <button class="share-btn share-btn-twitter" data-activity="${name}" title="Share on X (Twitter)">𝕏 X</button>
+        <button class="share-btn share-btn-whatsapp" data-activity="${name}" title="Share on WhatsApp">💬 WhatsApp</button>
+        <button class="share-btn share-btn-copy" data-activity="${name}" title="Copy link to clipboard">🔗 Copy Link</button>
+      </div>
     `;
 
     // Add click handlers for delete buttons
@@ -586,6 +616,43 @@ document.addEventListener("DOMContentLoaded", () => {
         });
       }
     }
+
+    // Add click handlers for share buttons
+    const shareText = `Check out "${name}" at Mergington High School! ${details.description} Schedule: ${formattedSchedule}`;
+    const shareUrl = window.location.href.split("?")[0];
+
+    activityCard.querySelector(".share-btn-twitter").addEventListener("click", () => {
+      const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
+      window.open(twitterUrl, "_blank", "noopener,noreferrer");
+    });
+
+    activityCard.querySelector(".share-btn-whatsapp").addEventListener("click", () => {
+      const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + " " + shareUrl)}`;
+      window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+    });
+
+    activityCard.querySelector(".share-btn-copy").addEventListener("click", (event) => {
+      const copyBtn = event.currentTarget;
+      const textToCopy = `${shareText}\n${shareUrl}`;
+      const originalText = "🔗 Copy Link";
+
+      const onCopied = () => {
+        copyBtn.textContent = "✔ Copied!";
+        copyBtn.classList.add("copied");
+        setTimeout(() => {
+          copyBtn.textContent = originalText;
+          copyBtn.classList.remove("copied");
+        }, 2000);
+      };
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(textToCopy).then(onCopied).catch(() => {
+          copyLegacy(textToCopy, copyBtn, originalText);
+        });
+      } else {
+        copyLegacy(textToCopy, copyBtn, originalText);
+      }
+    });
 
     activitiesList.appendChild(activityCard);
   }
